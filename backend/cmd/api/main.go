@@ -3,14 +3,16 @@ package main
 import (
 	"context"
 	"log/slog"
-	"net/http"
+	nethttp "net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 
 	"mini-product-catalog/internal/config"
-	"mini-product-catalog/internal/httpapi"
+	"mini-product-catalog/internal/http"
+
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
@@ -21,9 +23,25 @@ func main() {
 	}))
 	slog.SetDefault(logger)
 
-	handler := httpapi.NewServer(cfg, logger)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	srv := &http.Server{
+	db, err := pgxpool.New(ctx, cfg.DBURL)
+	if err != nil {
+		logger.Error("failed to create db pool", "err", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	if err := db.Ping(ctx); err != nil {
+		logger.Error("failed to ping db", "err", err)
+		os.Exit(1)
+	}
+	logger.Info("db connected")
+
+	handler := http.NewServer(cfg, logger, db)
+
+	srv := &nethttp.Server{
 		Addr:         ":" + cfg.Port,
 		Handler:      handler,
 		ReadTimeout:  10 * time.Second,
@@ -33,7 +51,7 @@ func main() {
 
 	go func() {
 		logger.Info("server started", "addr", srv.Addr)
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := srv.ListenAndServe(); err != nil && err != nethttp.ErrServerClosed {
 			logger.Error("listen error", "err", err)
 			os.Exit(1)
 		}
@@ -45,10 +63,10 @@ func main() {
 
 	logger.Info("shutting down...")
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer shutdownCancel()
 
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := srv.Shutdown(shutdownCtx); err != nil {
 		logger.Error("shutdown error", "err", err)
 	}
 
