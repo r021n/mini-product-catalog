@@ -3,7 +3,9 @@ package http
 import (
 	"log/slog"
 	"mini-product-catalog/internal/config"
+	"mini-product-catalog/internal/http/handler"
 	"mini-product-catalog/internal/middleware"
+	"mini-product-catalog/internal/store"
 	nethttp "net/http"
 
 	"github.com/go-chi/chi/v5"
