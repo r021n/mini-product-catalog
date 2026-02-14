@@ -65,7 +65,7 @@ func DecodeJSON(w http.ResponseWriter, r *http.Request, dst any) error {
 	}
 
 	// Memastikan tidak ada json kedua
-	if dec.More() {
+	if err := dec.Decode(&struct{}{}); err != io.EOF {
 		return errors.New("request body must contain only one JSON object")
 	}
 
