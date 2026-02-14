@@ -28,12 +28,24 @@ func NewServer(cfg config.Config, logger *slog.Logger, db *pgxpool.Pool) nethttp
 
 	validate := validator.New()
 
+	userStore := store.NewUserStore(db)
 	categoryStore := store.NewCategoryStore(db)
 
 	healthHandler := handler.NewHealthHandler()
 	categoriesHandler := handler.NewCategoriesHandler(categoryStore, validate)
+	authHandler := handler.NewAuthHandler(userStore, validate, cfg.JWTSecret)
 
 	r.Get("/health", healthHandler.Health)
+
+	r.Route("/auth", func(r chi.Router) {
+		r.Post("/register", authHandler.Register)
+		r.Post("/login", authHandler.Login)
+	})
+
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.AuthMiddleware(cfg.JWTSecret))
+		r.Get("/me", authHandler.Me)
+	})
 
 	r.Route("/categories", func(r chi.Router) {
 		r.Get("/", categoriesHandler.List)
