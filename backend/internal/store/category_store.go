@@ -60,6 +60,11 @@ func IsUniqueViolation(err error) bool {
 	return ok && pgErr.Code == "23505"
 }
 
+func IsForeignKeyViolation(err error) bool {
+	pgErr, ok := err.(*pgconn.PgError)
+	return ok && pgErr.Code == "23503"
+}
+
 func (s *CategoryStore) Exists(ctx context.Context, id uuid.UUID) (bool, error) {
 	var ok bool
 	err := s.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM categories WHERE id = $1)`, id).Scan(&ok)
