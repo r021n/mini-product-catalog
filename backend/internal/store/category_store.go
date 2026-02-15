@@ -4,6 +4,7 @@ import (
 	"context"
 	"mini-product-catalog/internal/model"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -57,4 +58,41 @@ func (s *CategoryStore) Create(ctx context.Context, name string) (model.Category
 func IsUniqueViolation(err error) bool {
 	pgErr, ok := err.(*pgconn.PgError)
 	return ok && pgErr.Code == "23505"
+}
+
+func (s *CategoryStore) Exists(ctx context.Context, id uuid.UUID) (bool, error) {
+	var ok bool
+	err := s.db.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM categories WHERE id = $1)`, id).Scan(&ok)
+	return ok, err
+}
+
+func (s *CategoryStore) Update(ctx context.Context, id uuid.UUID, name string) (model.Category, error) {
+	var c model.Category
+	err := s.db.QueryRow(ctx, `
+		UPDATE categories
+		SET name = $2
+		WHERE id = $1
+		RETURNING id, name, created_at
+	`, id, name).Scan(&c.ID, &c.Name, &c.CreatedAt)
+
+	if err != nil {
+		return model.Category{}, err
+	}
+
+	return c, nil
+}
+
+func (s *CategoryStore) Delete(ctx context.Context, id uuid.UUID) (model.Category, error) {
+	var c model.Category
+	err := s.db.QueryRow(ctx, `
+		DELETE FROM categories
+		WHERE id = $1
+		RETURNING id, name, created_at
+	`, id).Scan(&c.ID, &c.Name, &c.CreatedAt)
+
+	if err != nil {
+		return model.Category{}, err
+	}
+
+	return c, nil
 }

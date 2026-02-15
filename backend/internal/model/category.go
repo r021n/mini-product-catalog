@@ -15,3 +15,7 @@ type Category struct {
 type CategoryCreateRequest struct {
 	Name string `json:"name" validate:"required,min=2,max=50"`
 }
+
+type CategoryUpdateRequest struct {
+	Name string `json:"name" validate:"required,min=2,max=50"`
+}
