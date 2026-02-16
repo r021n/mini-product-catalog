@@ -57,3 +57,34 @@ func (s *ProductStore) Create(ctx context.Context, categoryID uuid.UUID, name, d
 
 	return p, err
 }
+
+func (s *ProductStore) Update(ctx context.Context, id uuid.UUID, categoryID uuid.UUID, name, description string, price float64) (model.Product, error) {
+	var p model.Product
+	err := s.db.QueryRow(ctx, `
+		UPDATE products
+		SET category_id = $2,
+			name = $3,
+			description = $4,
+			price = $5,
+			updated_at = now()
+		WHERE id = $1
+		RETURNING
+			id, category_id,
+			(SELECT name FROM categories WHERE id = $2) AS category_name,
+			name, description, price::float8, created_at, updated_at
+	`, id, categoryID, name, description, price).
+		Scan(&p.ID, &p.CategoryID, &p.CategoryName, &p.Name, &p.Description, &p.Price, &p.CreatedAt, &p.UpdatedAt)
+
+	return p, err
+}
+
+func (s *ProductStore) Delete(ctx context.Context, id uuid.UUID) (model.Product, error) {
+	var p model.Product
+	err := s.db.QueryRow(ctx, `
+		DELETE FROM products
+		WHERE id = $1
+		RETURNING id, category_id, ''::text as category_name, name, description, price::float8, created_at, updated_at
+	`, id).Scan(&p.ID, &p.CategoryID, &p.CategoryName, &p.Name, &p.Description, &p.Price, &p.CreatedAt, &p.UpdatedAt)
+
+	return p, err
+}
