@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -8,8 +9,10 @@ import (
 	"mini-product-catalog/internal/response"
 	"mini-product-catalog/internal/store"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 )
 
 type ProductsHandler struct {
@@ -82,6 +85,27 @@ func (h *ProductsHandler) List(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.WriteData(w, http.StatusOK, items, meta)
+}
+
+func (h *ProductsHandler) Get(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		response.WriteError(w, http.StatusBadRequest, "invalid product id", nil)
+		return
+	}
+
+	p, err := h.products.GetByID(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			response.WriteError(w, http.StatusNotFound, "product not found", nil)
+			return
+		}
+		response.WriteError(w, http.StatusInternalServerError, "failed to fetch product", nil)
+		return
+	}
+
+	response.WriteData(w, http.StatusOK, p, nil)
 }
 
 func parseInt(s string, def int) int {
