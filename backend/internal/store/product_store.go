@@ -2,7 +2,9 @@ package store
 
 import (
 	"context"
+	"fmt"
 	"mini-product-catalog/internal/model"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -20,7 +22,7 @@ type ProductListOptions struct {
 	Page  int
 	Limit int
 
-	CategoryId *uuid.UUID
+	CategoryID *uuid.UUID
 	MinPrice   *float64
 	MaxPrice   *float64
 	Q          string
@@ -87,4 +89,93 @@ func (s *ProductStore) Delete(ctx context.Context, id uuid.UUID) (model.Product,
 	`, id).Scan(&p.ID, &p.CategoryID, &p.CategoryName, &p.Name, &p.Description, &p.Price, &p.CreatedAt, &p.UpdatedAt)
 
 	return p, err
+}
+
+func (s *ProductStore) List(ctx context.Context, opt ProductListOptions) ([]model.Product, int, error) {
+	if opt.Page < 1 {
+		opt.Page = 1
+	}
+	if opt.Limit < 1 {
+		opt.Limit = 10
+	}
+	if opt.Limit > 100 {
+		opt.Limit = 100
+	}
+	offset := (opt.Page - 1) * opt.Limit
+
+	sortCol := "p.created_at"
+	if opt.Sort == "price" {
+		sortCol = "p.price"
+	}
+	order := "DESC"
+	if strings.ToLower(opt.Order) == "asc" {
+		order = "ASC"
+	}
+
+	conds := []string{"1=1"}
+	args := []any{}
+	argN := 1
+
+	if opt.CategoryID != nil {
+		conds = append(conds, fmt.Sprintf("p.category_id = $%d", argN))
+		args = append(args, *opt.CategoryID)
+		argN++
+	}
+	if opt.MinPrice != nil {
+		conds = append(conds, fmt.Sprintf("p.price >= $%d", argN))
+		args = append(args, *opt.MinPrice)
+		argN++
+	}
+	if opt.MaxPrice != nil {
+		conds = append(conds, fmt.Sprintf("p.price <= $%d", argN))
+		args = append(args, *opt.MaxPrice)
+		argN++
+	}
+	if strings.TrimSpace(opt.Q) != "" {
+		conds = append(conds, fmt.Sprintf("p.name ILIKE $%d", argN))
+		args = append(args, "%"+strings.TrimSpace(opt.Q)+"%")
+		argN++
+	}
+
+	whereSQL := strings.Join(conds, " AND ")
+
+	var total int
+
+	if err := s.db.QueryRow(ctx, `
+		SELECT COUNT(*)
+		FROM products p
+		WHERE `+whereSQL, args...,
+	).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+
+	argsList := append(args, opt.Limit, offset)
+	limitPos := argN
+	offsetPos := argN + 1
+
+	rows, err := s.db.Query(ctx, `
+		SELECT p.id, p.category_id, c.name, p.name, p.description, p.price::float8, p.created_at, p.updated_at
+		FROM products p
+		JOIN categories c ON c.id = p.category_id
+		WHERE `+whereSQL+`
+		ORDER BY `+sortCol+` `+order+`
+		LIMIT $`+fmt.Sprint(limitPos)+` OFFSET $`+fmt.Sprint(offsetPos), argsList...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+
+	out := []model.Product{}
+	for rows.Next() {
+		var p model.Product
+		if err := rows.Scan(&p.ID, &p.CategoryID, &p.CategoryName, &p.Name, &p.Description, &p.Price, &p.CreatedAt, &p.UpdatedAt); err != nil {
+			return nil, 0, err
+		}
+		out = append(out, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, 0, err
+	}
+
+	return out, total, nil
 }
