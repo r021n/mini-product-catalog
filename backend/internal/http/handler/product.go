@@ -184,6 +184,27 @@ func (h *ProductsHandler) Update(w http.ResponseWriter, r *http.Request) {
 	response.WriteData(w, http.StatusOK, updated, nil)
 }
 
+func (h *ProductsHandler) Delete(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		response.WriteError(w, http.StatusBadRequest, "invalid product id", nil)
+		return
+	}
+
+	deleted, err := h.products.Delete(r.Context(), id)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			response.WriteError(w, http.StatusNotFound, "product not found", nil)
+			return
+		}
+		response.WriteError(w, http.StatusInternalServerError, "failed to delete product", nil)
+		return
+	}
+
+	response.WriteData(w, http.StatusOK, deleted, nil)
+}
+
 func parseInt(s string, def int) int {
 	s = strings.TrimSpace(s)
 	if s == "" {
