@@ -30,9 +30,11 @@ func NewServer(cfg config.Config, logger *slog.Logger, db *pgxpool.Pool) nethttp
 
 	userStore := store.NewUserStore(db)
 	categoryStore := store.NewCategoryStore(db)
+	productStore := store.NewProductStore(db)
 
 	healthHandler := handler.NewHealthHandler()
 	categoriesHandler := handler.NewCategoriesHandler(categoryStore, validate)
+	productsHandler := handler.NewProductsHandler(productStore, categoryStore, validate)
 	authHandler := handler.NewAuthHandler(userStore, validate, cfg.JWTSecret)
 
 	r.Get("/health", healthHandler.Health)
@@ -49,7 +51,27 @@ func NewServer(cfg config.Config, logger *slog.Logger, db *pgxpool.Pool) nethttp
 
 	r.Route("/categories", func(r chi.Router) {
 		r.Get("/", categoriesHandler.List)
-		r.Post("/", categoriesHandler.Create)
+
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.AuthMiddleware(cfg.JWTSecret))
+			r.Use(middleware.RequireRole("admin"))
+			r.Post("/", categoriesHandler.Create)
+			r.Put("/{id}", categoriesHandler.Update)
+			r.Delete("/{id}", categoriesHandler.Delete)
+		})
+	})
+
+	r.Route("/products", func(r chi.Router) {
+		r.Get("/", productsHandler.List)
+		r.Get("/{id}", productsHandler.Get)
+
+		r.Group(func(r chi.Router) {
+			r.Use(middleware.AuthMiddleware(cfg.JWTSecret))
+			r.Use(middleware.RequireRole("admin"))
+			r.Post("/", productsHandler.Create)
+			r.Put("/{id}", productsHandler.Update)
+			r.Delete("/{id}", productsHandler.Delete)
+		})
 	})
 
 	return r
