@@ -141,6 +141,49 @@ func (h *ProductsHandler) Create(w http.ResponseWriter, r *http.Request) {
 	response.WriteData(w, http.StatusCreated, created, nil)
 }
 
+func (h *ProductsHandler) Update(w http.ResponseWriter, r *http.Request) {
+	idStr := chi.URLParam(r, "id")
+	id, err := uuid.Parse(idStr)
+	if err != nil {
+		response.WriteError(w, http.StatusBadRequest, "invalid product id", nil)
+		return
+	}
+
+	var req model.ProductUpdateRequest
+	if err := response.DecodeJSON(w, r, &req); err != nil {
+		response.WriteError(w, http.StatusBadRequest, "invalid request body", err.Error())
+		return
+	}
+	if err := h.validate.Struct(req); err != nil {
+		response.WriteError(w, http.StatusBadRequest, "validation error", err.Error())
+		return
+	}
+
+	catID, _ := uuid.Parse(req.CategoryID)
+
+	ok, err := h.categories.Exists(r.Context(), catID)
+	if err != nil {
+		response.WriteError(w, http.StatusInternalServerError, "failed to validate category", nil)
+		return
+	}
+	if !ok {
+		response.WriteError(w, http.StatusBadRequest, "category_id not found", nil)
+		return
+	}
+
+	updated, err := h.products.Update(r.Context(), id, catID, req.Name, req.Description, req.Price)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			response.WriteError(w, http.StatusNotFound, "product not found", nil)
+			return
+		}
+		response.WriteError(w, http.StatusInternalServerError, "failed to update product", nil)
+		return
+	}
+
+	response.WriteData(w, http.StatusOK, updated, nil)
+}
+
 func parseInt(s string, def int) int {
 	s = strings.TrimSpace(s)
 	if s == "" {
