@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 
+	"mini-product-catalog/internal/model"
 	"mini-product-catalog/internal/response"
 	"mini-product-catalog/internal/store"
 
@@ -106,6 +107,38 @@ func (h *ProductsHandler) Get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response.WriteData(w, http.StatusOK, p, nil)
+}
+
+func (h *ProductsHandler) Create(w http.ResponseWriter, r *http.Request) {
+	var req model.ProductCreateRequest
+	if err := response.DecodeJSON(w, r, &req); err != nil {
+		response.WriteError(w, http.StatusBadRequest, "invalid request body", err.Error())
+		return
+	}
+	if err := h.validate.Struct(req); err != nil {
+		response.WriteError(w, http.StatusBadRequest, "validation error", err.Error())
+		return
+	}
+
+	catID, _ := uuid.Parse(req.CategoryID)
+
+	ok, err := h.categories.Exists(r.Context(), catID)
+	if err != nil {
+		response.WriteError(w, http.StatusInternalServerError, "failed to validate category", nil)
+		return
+	}
+	if !ok {
+		response.WriteError(w, http.StatusBadRequest, "category_id not found", nil)
+		return
+	}
+
+	created, err := h.products.Create(r.Context(), catID, req.Name, req.Description, req.Price)
+	if err != nil {
+		response.WriteError(w, http.StatusInternalServerError, "failed to create product", nil)
+		return
+	}
+
+	response.WriteData(w, http.StatusCreated, created, nil)
 }
 
 func parseInt(s string, def int) int {
