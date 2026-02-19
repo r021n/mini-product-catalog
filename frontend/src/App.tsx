@@ -1,50 +1,28 @@
-import { useEffect, useState } from "react";
-import { Navbar, NavbarBrand, Card, CardBody, Chip } from "@heroui/react";
+import { AppShell } from "./components/AppShell";
+import { ProtectedRoute } from "./components/ProtectedRoute";
 
-type Health = { status: string };
+import { LoginPage } from "./routes/LoginPage";
+import { RegisterPage } from "./routes/RegisterPage";
+import { CatalogPage } from "./routes/CatalogPage";
+import { AdminPage } from "./routes/AdminPage";
+import { Route, Routes } from "react-router-dom";
 
 export default function App() {
-  const [health, setHealth] = useState<Health | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const apiUrl = import.meta.env.VITE_API_URL as string;
-
-  useEffect(() => {
-    fetch(`${apiUrl}/health`)
-      .then(async (r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return (await r.json()) as Health;
-      })
-      .then(setHealth)
-      .catch((e) => setError(String(e)));
-  }, [apiUrl]);
-
   return (
-    <div className="min-h-screen bg-slate-50">
-      <Navbar>
-        <NavbarBrand className="font-semibold">
-          Mini Product Catalog
-        </NavbarBrand>
-      </Navbar>
+    <AppShell>
+      <Routes>
+        <Route path="/" element={<CatalogPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
 
-      <main className="max-w-3xl mx-auto p-6">
-        <Card>
-          <CardBody className="space-y-3">
-            <div className="text-lg font-semibold">Home</div>
+        <Route element={<ProtectedRoute />}></Route>
 
-            <div className="flex items-center gap-2">
-              <div>Backend health:</div>
-              {health && <Chip color="success">{health.status}</Chip>}
-              {error && <Chip color="danger">{error}</Chip>}
-              {!health && !error && <Chip>loading...</Chip>}
-            </div>
+        <Route element={<ProtectedRoute requireAdmin />}>
+          <Route path="/admin" element={<AdminPage />} />
+        </Route>
 
-            <div className="text-sm text-slate-600">
-              API: <span className="font-mono">{apiUrl}</span>
-            </div>
-          </CardBody>
-        </Card>
-      </main>
-    </div>
+        <Route path="*" element={<div>Not Found</div>} />
+      </Routes>
+    </AppShell>
   );
 }
