@@ -11,12 +11,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  async function refreshMe() {
-    if (!token) {
+  async function refreshMe(overrideToken?: string) {
+    const activeToken = overrideToken ?? token;
+    if (!activeToken) {
       setUser(null);
       return;
     }
-    const res = await apiFetch<SuccessEnvelope<User>>("/me", { token });
+    const res = await apiFetch<SuccessEnvelope<User>>("/me", {
+      token: activeToken,
+    });
     setUser(res.data);
   }
 
@@ -47,8 +50,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const t = res.data.access_token;
     localStorage.setItem(TOKEN_KEY, t);
     setToken(t);
-
-    await refreshMe();
+    await refreshMe(t);
   }
 
   async function register(name: string, email: string, password: string) {
