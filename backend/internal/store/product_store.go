@@ -38,7 +38,7 @@ func (s *ProductStore) GetByID(ctx context.Context, id uuid.UUID) (model.Product
 		FROM products p
 		JOIN categories c ON c.id = p.category_id
 		WHERE p.id = $1
-	`, id).Scan(&p.ID, &p.CategoryID, &p.CategoryName, &p.Name, &p.Description, &p.Name, &p.Price, &p.CreatedAt, &p.UpdatedAt)
+	`, id).Scan(&p.ID, &p.CategoryID, &p.CategoryName, &p.Name, &p.Description, &p.Price, &p.CreatedAt, &p.UpdatedAt)
 
 	if err != nil {
 		return model.Product{}, err
