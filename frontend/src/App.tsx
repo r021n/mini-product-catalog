@@ -5,6 +5,7 @@ import { LoginPage } from "./routes/LoginPage";
 import { RegisterPage } from "./routes/RegisterPage";
 import { CatalogPage } from "./routes/CatalogPage";
 import { AdminPage } from "./routes/AdminPage";
+import { ProductDetailPage } from "./routes/ProductDetailPage";
 import { Route, Routes } from "react-router-dom";
 
 export default function App() {
@@ -14,6 +15,7 @@ export default function App() {
         <Route path="/" element={<CatalogPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/products/:id" element={<ProductDetailPage />} />
 
         <Route element={<ProtectedRoute />}></Route>
 

@@ -1,4 +1,4 @@
-import { useEffect, useState, startTransition } from "react";
+import { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { Card, CardBody, Spinner, Button } from "@heroui/react";
 import { apiFetch, type SuccessEnvelope } from "../lib/api";
@@ -12,14 +12,31 @@ export function ProductDetailPage() {
 
   useEffect(() => {
     if (!id) return;
-    startTransition(() => {
+
+    let ignore = false;
+
+    const fetchProduct = async () => {
+      // Reset state sebelum mulai fetch
       setError(null);
       setItem(null);
-    });
 
-    apiFetch<SuccessEnvelope<Product>>(`/products/${id}`)
-      .then((res) => setItem(res.data))
-      .catch((e) => setError(e.message ?? "Failed to load product"));
+      try {
+        const res = await apiFetch<SuccessEnvelope<Product>>(`/products/${id}`);
+        if (!ignore) {
+          setItem(res.data);
+        }
+      } catch (e: any) {
+        if (!ignore) {
+          setError(e.message ?? "Failed to load product");
+        }
+      }
+    };
+
+    fetchProduct();
+
+    return () => {
+      ignore = true;
+    };
   }, [id]);
 
   if (error)
