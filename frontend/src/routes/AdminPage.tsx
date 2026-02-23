@@ -1,19 +1,20 @@
-import { Card, CardBody } from "@heroui/react";
-import { useAuth } from "../lib/useAuth";
+import { Tabs, Tab, Card, CardBody } from "@heroui/react";
+import { CategoriesManager } from "./admin/CategoriesManager";
+import { ProductsManager } from "./admin/ProductsManager";
 
 export function AdminPage() {
-  const { user } = useAuth();
-
   return (
     <Card>
-      <CardBody className="space-y-2">
-        <div className="text-xl font-semibold">Admin</div>
-        <div className="text-sm text-slate-600">
-          Welcome, {user?.email} (role: {user?.role})
-        </div>
-        <div className="text-sm">
-          Next chapter kita isi halaman ini untuk CRUD categories & products.
-        </div>
+      <CardBody className="space-y-4">
+        <div className="text-xl font-semibold">Admin Panel</div>
+        <Tabs aria-label="admin-tabs">
+          <Tab key="categories" title="Categories">
+            <CategoriesManager />
+          </Tab>
+          <Tab key="products" title="Products">
+            <ProductsManager />
+          </Tab>
+        </Tabs>
       </CardBody>
     </Card>
   );
